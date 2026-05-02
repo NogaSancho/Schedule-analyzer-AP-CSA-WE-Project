@@ -1,40 +1,70 @@
 # Course Schedule Analyzer
 
-A Java console application that helps students plan and evaluate their academic schedule by analyzing workload based on hours, credits, and course difficulty.
+A Java application for planning and evaluating course workload. Includes a Swing GUI, a JavaFX GUI, and an original console version.
 
 ## Project Structure
 
-- **`Course.java`** — Defines the `Course` class and the `CourseType` enum (`THEORY`, `LAB`, `WORKSHOP`), each with a difficulty multiplier.
-- **`schedule.java`** — Main class that manages a collection of courses, computes a workload score, and prints a detailed report.
+```
+├── src/                        # Java source files (GUI versions)
+│   ├── Course.java             # Domain model for course data and CourseType multipliers
+│   ├── ScheduleModel.java      # In-memory schedule state
+│   ├── ScheduleService.java    # Validation, score computation, and warning generation
+│   ├── ScheduleAnalysis.java   # Immutable analysis result object
+│   ├── ValidationResult.java   # Validation result object used by add/edit flows
+│   ├── ScheduleJsonStore.java  # JSON save/load for schedules
+│   ├── ScheduleAnalyzerSwingApp.java  # Swing application entry point
+│   └── ScheduleAnalyzerApp.java       # JavaFX application entry point
+├── legacy/                     # Original console-based implementation
+│   └── schedule.java
+├── out/                        # Compiled .class files (build output)
+├── LICENSE
+└── README.md
+```
 
-## How It Works
+## Features
 
-### 1. Adding Courses
-On startup, the program prompts you to set a maximum credit limit, then enter courses one by one. For each course you provide:
-- **Name**
-- **Type** — `THEORY` (×1.0), `LAB` (×1.4), or `WORKSHOP` (×1.2)
-- **Hours per week**
-- **Credits**
-- **Difficulty rating** (0.0 – 10.0)
+1. Add, edit, and delete courses in a GUI table.
+2. Set max credits dynamically.
+3. Real-time analysis of:
+   - Total hours and credits
+   - Weighted scores (hours 40%, credits 30%, difficulty 30%)
+   - Final workload score (0-100)
+4. Real-time warnings for:
+   - Credit limit exceeded
+   - LAB difficulty >= 4.0
+   - Final score above 80.0
+5. Save and load schedules as JSON.
 
-### 2. Score Calculation
-Once all courses are added, a final workload score (0–100) is computed using three weighted components:
+## Validation Rules
 
-| Component | Weight | Basis |
-|---|---|---|
-| Hours Score | 40% | Total hours / 30 max hours |
-| Credits Score | 30% | Total credits / max credits set |
-| Difficulty Score | 30% | Sum of (difficulty × type multiplier), normalized |
+- Course name cannot be empty.
+- Hours per week must be at least 1.
+- Credits must be at least 1.
+- Difficulty rating must be between 0.0 and 10.0.
 
-### 3. Report & Warnings
-The program prints a full report including score breakdown and any warnings:
-- Credit limit exceeded
-- LAB courses with difficulty ≥ 4.0
-- Final score above **80.0** (schedule may be too demanding)
+---
 
-## Running the Project
+## Compile & Run — Swing GUI (recommended)
+
+Swing is bundled with the JDK — no extra dependencies needed.
+
+**Compile:**
+```bash
+javac -d out src/Course.java src/ValidationResult.java src/ScheduleAnalysis.java \
+  src/ScheduleModel.java src/ScheduleService.java src/ScheduleJsonStore.java \
+  src/ScheduleAnalyzerSwingApp.java
+```
+
+**Run:**
+```bash
+java -cp out ScheduleAnalyzerSwingApp
+```
+
+---
+
+## Compile & Run — Legacy Console Version
 
 ```bash
-javac Course.java schedule.java
-java schedule
+javac -d out src/Course.java legacy/schedule.java
+java -cp out schedule
 ```
