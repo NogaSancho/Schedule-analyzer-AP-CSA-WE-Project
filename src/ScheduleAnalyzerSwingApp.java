@@ -1,13 +1,33 @@
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 import javax.swing.*;
 import javax.swing.border.*;
+import javax.swing.plaf.basic.BasicScrollBarUI;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
 
 public class ScheduleAnalyzerSwingApp extends JFrame {
+
+    // ── Dark theme palette ──────────────────────────────────────────────────
+    private static final Color BG_DEEP    = new Color(0x12131A);
+    private static final Color BG_PANEL   = new Color(0x1C1E2B);
+    private static final Color BG_CARD    = new Color(0x232635);
+    private static final Color BG_ROW_ALT = new Color(0x1E2030);
+    private static final Color ACCENT     = new Color(0x7C83FD);
+    private static final Color ACCENT_HOV = new Color(0x9DA3FF);
+    private static final Color SUCCESS    = new Color(0x4ADE80);
+    private static final Color WARNING    = new Color(0xFBBF24);
+    private static final Color DANGER     = new Color(0xF87171);
+    private static final Color TEXT_PRI   = new Color(0xE2E8F0);
+    private static final Color TEXT_SEC   = new Color(0x94A3B8);
+    private static final Color BORDER_CLR = new Color(0x2E3148);
 
     private final ScheduleModel model = new ScheduleModel();
     private final ScheduleService service = new ScheduleService();
@@ -44,12 +64,15 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     private int editingIndex = -1;
 
     public ScheduleAnalyzerSwingApp() {
-        super("Course Schedule Analyzer - Swing");
+        super("Course Schedule Analyzer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1080, 720);
-        setMinimumSize(new Dimension(900, 600));
+        setSize(1100, 740);
+        setMinimumSize(new Dimension(900, 620));
 
-        JPanel root = new JPanel(new BorderLayout(0, 10));
+        applyGlobalDefaults();
+
+        JPanel root = new JPanel(new BorderLayout(0, 12));
+        root.setBackground(BG_DEEP);
         root.setBorder(new EmptyBorder(14, 14, 14, 14));
 
         root.add(buildTopBar(), BorderLayout.NORTH);
@@ -61,17 +84,63 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         setVisible(true);
     }
 
+    /** Push dark defaults into UIManager so all Swing components inherit them. */
+    private void applyGlobalDefaults() {
+        UIManager.put("Panel.background",           BG_PANEL);
+        UIManager.put("OptionPane.background",      BG_CARD);
+        UIManager.put("OptionPane.messageForeground",TEXT_PRI);
+        UIManager.put("Label.foreground",           TEXT_PRI);
+        UIManager.put("TextField.background",       BG_CARD);
+        UIManager.put("TextField.foreground",       TEXT_PRI);
+        UIManager.put("TextField.caretForeground",  ACCENT);
+        UIManager.put("TextField.border",
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER_CLR, 1),
+                        BorderFactory.createEmptyBorder(3, 6, 3, 6)));
+        UIManager.put("ComboBox.background",        BG_CARD);
+        UIManager.put("ComboBox.foreground",        TEXT_PRI);
+        UIManager.put("ComboBox.selectionBackground", ACCENT);
+        UIManager.put("ComboBox.selectionForeground", Color.WHITE);
+        UIManager.put("Spinner.background",         BG_CARD);
+        UIManager.put("Spinner.foreground",         TEXT_PRI);
+        UIManager.put("FormattedTextField.background", BG_CARD);
+        UIManager.put("FormattedTextField.foreground", TEXT_PRI);
+        UIManager.put("List.background",            BG_CARD);
+        UIManager.put("List.foreground",            TEXT_PRI);
+        UIManager.put("List.selectionBackground",   ACCENT);
+        UIManager.put("List.selectionForeground",   Color.WHITE);
+        UIManager.put("ScrollPane.background",      BG_CARD);
+        UIManager.put("Viewport.background",        BG_CARD);
+        UIManager.put("ScrollBar.background",       BG_PANEL);
+        UIManager.put("ScrollBar.thumb",            BORDER_CLR);
+        UIManager.put("SplitPane.background",       BG_DEEP);
+        UIManager.put("SplitPaneDivider.background",BG_DEEP);
+        UIManager.put("SplitPane.border",           BorderFactory.createEmptyBorder());
+    }
+
     // -------------------------------------------------------------------------
     // Top bar
     // -------------------------------------------------------------------------
 
     private JPanel buildTopBar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        bar.setBackground(BG_DEEP);
         bar.setBorder(new EmptyBorder(0, 0, 8, 0));
 
-        bar.add(new JLabel("Max Credits:"));
+        JLabel title = new JLabel("📅 Schedule Analyzer");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 17));
+        title.setForeground(ACCENT);
+        bar.add(title);
+
+        bar.add(Box.createHorizontalStrut(16));
+
+        JLabel maxLbl = new JLabel("Max Credits:");
+        maxLbl.setForeground(TEXT_SEC);
+        bar.add(maxLbl);
+
         maxCreditsSpinner = new JSpinner(new SpinnerNumberModel(model.getMaxCredits(), 1, 60, 1));
-        maxCreditsSpinner.setPreferredSize(new Dimension(70, 26));
+        maxCreditsSpinner.setPreferredSize(new Dimension(70, 28));
+        styleSpinner(maxCreditsSpinner);
         maxCreditsSpinner.addChangeListener(e -> {
             int value = (int) maxCreditsSpinner.getValue();
             model.setMaxCredits(value);
@@ -79,13 +148,9 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         });
         bar.add(maxCreditsSpinner);
 
-        JButton saveButton = new JButton("Save JSON");
-        saveButton.addActionListener(e -> saveSchedule());
-        bar.add(saveButton);
-
-        JButton loadButton = new JButton("Load JSON");
-        loadButton.addActionListener(e -> loadSchedule());
-        bar.add(loadButton);
+        bar.add(Box.createHorizontalStrut(8));
+        bar.add(styledButton("💾  Save JSON", ACCENT, e -> saveSchedule()));
+        bar.add(styledButton("📂  Load JSON", BG_CARD, e -> loadSchedule()));
 
         return bar;
     }
@@ -102,6 +167,8 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         split.setDividerLocation(360);
         split.setResizeWeight(0.0);
         split.setBorder(null);
+        split.setBackground(BG_DEEP);
+        split.setDividerSize(6);
         return split;
     }
 
@@ -112,13 +179,19 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     private JPanel buildLeftPane() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(new Color(0xF6F8FC));
+        panel.setBackground(BG_PANEL);
         panel.setBorder(new CompoundBorder(
-                new LineBorder(new Color(0xD9DEE8), 1, true),
-                new EmptyBorder(12, 12, 12, 12)));
+                new LineBorder(BORDER_CLR, 1, true),
+                new EmptyBorder(16, 14, 14, 14)));
 
-        panel.add(buildCourseForm());
+        JLabel heading = new JLabel("Add / Edit Course");
+        heading.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        heading.setForeground(ACCENT);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(heading);
         panel.add(Box.createVerticalStrut(10));
+        panel.add(buildCourseForm());
+        panel.add(Box.createVerticalStrut(12));
         panel.add(buildFormButtons());
         panel.add(Box.createVerticalStrut(6));
         panel.add(buildFormErrorLabel());
@@ -132,26 +205,31 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         grid.setOpaque(false);
         GridBagConstraints labelC = new GridBagConstraints();
         labelC.anchor = GridBagConstraints.WEST;
-        labelC.insets = new Insets(4, 0, 4, 8);
+        labelC.insets = new Insets(5, 0, 5, 10);
         labelC.gridx = 0;
 
         GridBagConstraints fieldC = new GridBagConstraints();
         fieldC.fill = GridBagConstraints.HORIZONTAL;
         fieldC.weightx = 1.0;
-        fieldC.insets = new Insets(4, 0, 4, 0);
+        fieldC.insets = new Insets(5, 0, 5, 0);
         fieldC.gridx = 1;
 
         nameField = new JTextField();
         nameField.setToolTipText("Course name");
+        styleTextField(nameField);
 
         typeCombo = new JComboBox<>(Course.CourseType.values());
         typeCombo.setSelectedItem(Course.CourseType.THEORY);
+        styleComboBox(typeCombo);
 
         hoursSpinner = new JSpinner(new SpinnerNumberModel(3, 1, 40, 1));
         creditsSpinner = new JSpinner(new SpinnerNumberModel(3, 1, 12, 1));
         difficultySpinner = new JSpinner(new SpinnerNumberModel(5.0, 0.0, 10.0, 0.1));
         JSpinner.NumberEditor diffEditor = new JSpinner.NumberEditor(difficultySpinner, "0.0");
         difficultySpinner.setEditor(diffEditor);
+        styleSpinner(hoursSpinner);
+        styleSpinner(creditsSpinner);
+        styleSpinner(difficultySpinner);
 
         String[] labels = {"Course Name", "Course Type", "Hours / Week", "Credits", "Difficulty (0-10)"};
         JComponent[] fields = {nameField, typeCombo, hoursSpinner, creditsSpinner, difficultySpinner};
@@ -159,7 +237,10 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         for (int i = 0; i < labels.length; i++) {
             labelC.gridy = i;
             fieldC.gridy = i;
-            grid.add(new JLabel(labels[i]), labelC);
+            JLabel lbl = new JLabel(labels[i]);
+            lbl.setForeground(TEXT_SEC);
+            lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            grid.add(lbl, labelC);
             grid.add(fields[i], fieldC);
         }
 
@@ -167,11 +248,8 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     }
 
     private JPanel buildFormButtons() {
-        addOrUpdateButton = new JButton("Add Course");
-        addOrUpdateButton.addActionListener(e -> saveCourseFromForm());
-
-        JButton clearButton = new JButton("Clear Form");
-        clearButton.addActionListener(e -> resetForm());
+        addOrUpdateButton = styledButton("＋  Add Course", ACCENT, e -> saveCourseFromForm());
+        JButton clearButton = styledButton("✕  Clear Form", BG_CARD, e -> resetForm());
 
         JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         row.setOpaque(false);
@@ -182,7 +260,8 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
 
     private JLabel buildFormErrorLabel() {
         formErrorLabel = new JLabel(" ");
-        formErrorLabel.setForeground(new Color(0x9F1239));
+        formErrorLabel.setForeground(DANGER);
+        formErrorLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         formErrorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         return formErrorLabel;
     }
@@ -193,6 +272,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
 
     private JPanel buildRightPane() {
         JPanel panel = new JPanel(new BorderLayout(0, 8));
+        panel.setBackground(BG_DEEP);
         panel.setBorder(new EmptyBorder(0, 10, 0, 0));
 
         JPanel tableSection = buildTableSection();
@@ -201,6 +281,8 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         JSplitPane vertSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tableSection, reportPanel);
         vertSplit.setResizeWeight(0.55);
         vertSplit.setBorder(null);
+        vertSplit.setBackground(BG_DEEP);
+        vertSplit.setDividerSize(6);
 
         panel.add(vertSplit, BorderLayout.CENTER);
         return panel;
@@ -209,15 +291,44 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     private JPanel buildTableSection() {
         String[] columns = {"Name", "Type", "Hours/Week", "Credits", "Difficulty"};
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int col) {
-                return false;
-            }
+            @Override public boolean isCellEditable(int row, int col) { return false; }
         };
         courseTable = new JTable(tableModel);
         courseTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         courseTable.setFillsViewportHeight(true);
         courseTable.getTableHeader().setReorderingAllowed(false);
+        courseTable.setBackground(BG_CARD);
+        courseTable.setForeground(TEXT_PRI);
+        courseTable.setSelectionBackground(ACCENT);
+        courseTable.setSelectionForeground(Color.WHITE);
+        courseTable.setGridColor(BORDER_CLR);
+        courseTable.setRowHeight(26);
+        courseTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        courseTable.setShowHorizontalLines(true);
+        courseTable.setShowVerticalLines(false);
+        courseTable.setIntercellSpacing(new Dimension(0, 1));
+
+        // Styled header
+        JTableHeader header = courseTable.getTableHeader();
+        header.setBackground(BG_PANEL);
+        header.setForeground(TEXT_SEC);
+        header.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_CLR));
+
+        // Alternating row renderer
+        courseTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int col) {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, col);
+                setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+                if (!isSelected) {
+                    setBackground(row % 2 == 0 ? BG_CARD : BG_ROW_ALT);
+                    setForeground(TEXT_PRI);
+                }
+                return this;
+            }
+        });
 
         courseTable.getSelectionModel().addListSelectionListener(e -> {
             if (e.getValueIsAdjusting()) return;
@@ -231,40 +342,47 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         });
 
         JScrollPane scroll = new JScrollPane(courseTable);
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER_CLR, 1));
+        scroll.getViewport().setBackground(BG_CARD);
 
-        JButton deleteButton = new JButton("Delete Selected");
-        deleteButton.setToolTipText("Delete the currently selected course from the table.");
-        deleteButton.addActionListener(e -> deleteSelectedCourse());
+        JButton deleteButton = styledButton("🗑  Delete Selected", DANGER, e -> deleteSelectedCourse());
 
         JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        buttonRow.setBackground(BG_DEEP);
         buttonRow.add(deleteButton);
 
+        JLabel heading = new JLabel("Courses");
+        heading.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        heading.setForeground(TEXT_PRI);
+
         JPanel section = new JPanel(new BorderLayout(0, 6));
-        section.add(new JLabel("Courses"), BorderLayout.NORTH);
+        section.setBackground(BG_DEEP);
+        section.add(heading, BorderLayout.NORTH);
         section.add(scroll, BorderLayout.CENTER);
         section.add(buttonRow, BorderLayout.SOUTH);
         return section;
     }
 
     private JPanel buildReportPanel() {
-        totalHoursValue = new JLabel("0");
-        totalCreditsValue = new JLabel("0");
-        hoursScoreValue = new JLabel("0.00 / 100");
-        creditsScoreValue = new JLabel("0.00 / 100");
-        difficultyScoreValue = new JLabel("0.00 / 100");
-        finalScoreValue = new JLabel("0.00 / 100");
+        totalHoursValue    = styledValueLabel("0");
+        totalCreditsValue  = styledValueLabel("0");
+        hoursScoreValue    = styledValueLabel("0.00 / 100");
+        creditsScoreValue  = styledValueLabel("0.00 / 100");
+        difficultyScoreValue = styledValueLabel("0.00 / 100");
+        finalScoreValue    = styledValueLabel("0.00 / 100");
+        finalScoreValue.setFont(new Font("Segoe UI", Font.BOLD, 14));
 
         JPanel stats = new JPanel(new GridBagLayout());
         stats.setOpaque(false);
         GridBagConstraints lc = new GridBagConstraints();
         lc.anchor = GridBagConstraints.WEST;
-        lc.insets = new Insets(2, 0, 2, 10);
+        lc.insets = new Insets(3, 0, 3, 12);
         lc.gridx = 0;
 
         GridBagConstraints vc = new GridBagConstraints();
         vc.anchor = GridBagConstraints.WEST;
         vc.weightx = 1.0;
-        vc.insets = new Insets(2, 0, 2, 0);
+        vc.insets = new Insets(3, 0, 3, 0);
         vc.gridx = 1;
 
         String[] statLabels = {
@@ -280,29 +398,57 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         for (int i = 0; i < statLabels.length; i++) {
             lc.gridy = i;
             vc.gridy = i;
-            stats.add(new JLabel(statLabels[i]), lc);
+            JLabel lbl = new JLabel(statLabels[i]);
+            lbl.setForeground(TEXT_SEC);
+            lbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            stats.add(lbl, lc);
             stats.add(statValues[i], vc);
         }
 
         warningsListModel = new DefaultListModel<>();
         warningsList = new JList<>(warningsListModel);
-        warningsList.setVisibleRowCount(5);
+        warningsList.setVisibleRowCount(4);
+        warningsList.setBackground(BG_CARD);
+        warningsList.setForeground(WARNING);
+        warningsList.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        warningsList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value,
+                    int index, boolean isSelected, boolean hasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, hasFocus);
+                String text = value.toString();
+                setForeground(text.startsWith("No warnings") ? SUCCESS : WARNING);
+                setBackground(isSelected ? ACCENT : BG_CARD);
+                setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+                return this;
+            }
+        });
         JScrollPane warningsScroll = new JScrollPane(warningsList);
+        warningsScroll.setBorder(BorderFactory.createLineBorder(BORDER_CLR, 1));
+        warningsScroll.getViewport().setBackground(BG_CARD);
 
-        JPanel report = new JPanel(new BorderLayout(0, 8));
+        JPanel report = new JPanel(new BorderLayout(0, 10));
         report.setBorder(new CompoundBorder(
-                new LineBorder(new Color(0xD7D7D7), 1, true),
-                new EmptyBorder(10, 10, 10, 10)));
-        report.setBackground(new Color(0xF9F9F9));
+                new LineBorder(BORDER_CLR, 1, true),
+                new EmptyBorder(12, 12, 12, 12)));
+        report.setBackground(BG_PANEL);
+
+        JLabel analysisHeading = new JLabel("📊  Live Analysis");
+        analysisHeading.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        analysisHeading.setForeground(ACCENT);
 
         JPanel inner = new JPanel(new BorderLayout(0, 6));
         inner.setOpaque(false);
-        inner.add(new JLabel("Live Analysis"), BorderLayout.NORTH);
+        inner.add(analysisHeading, BorderLayout.NORTH);
         inner.add(stats, BorderLayout.CENTER);
+
+        JLabel warningsHeading = new JLabel("⚠  Warnings");
+        warningsHeading.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        warningsHeading.setForeground(WARNING);
 
         JPanel warningsSection = new JPanel(new BorderLayout(0, 4));
         warningsSection.setOpaque(false);
-        warningsSection.add(new JLabel("Warnings"), BorderLayout.NORTH);
+        warningsSection.add(warningsHeading, BorderLayout.NORTH);
         warningsSection.add(warningsScroll, BorderLayout.CENTER);
 
         report.add(inner, BorderLayout.NORTH);
@@ -352,7 +498,6 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     }
 
     private void refreshReport() {
-        // Rebuild table rows
         tableModel.setRowCount(0);
         for (Course c : model.getCoursesSnapshot()) {
             tableModel.addRow(new Object[]{
@@ -370,16 +515,17 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         hoursScoreValue.setText(String.format("%.2f / 100", analysis.getHoursScore()));
         creditsScoreValue.setText(String.format("%.2f / 100", analysis.getCreditsScore()));
         difficultyScoreValue.setText(String.format("%.2f / 100", analysis.getDifficultyScore()));
-        finalScoreValue.setText(String.format("%.2f / 100", analysis.getFinalScore()));
+
+        double fs = analysis.getFinalScore();
+        finalScoreValue.setText(String.format("%.2f / 100", fs));
+        finalScoreValue.setForeground(fs >= 75 ? SUCCESS : fs >= 50 ? WARNING : DANGER);
 
         warningsListModel.clear();
         List<String> warnings = analysis.getWarnings();
         if (warnings.isEmpty()) {
             warningsListModel.addElement("No warnings. Schedule looks balanced.");
         } else {
-            for (String w : warnings) {
-                warningsListModel.addElement(w);
-            }
+            for (String w : warnings) warningsListModel.addElement(w);
         }
     }
 
@@ -392,7 +538,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
 
         editingIndex = -1;
         courseTable.clearSelection();
-        addOrUpdateButton.setText("Add Course");
+        addOrUpdateButton.setText("＋  Add Course");
         formErrorLabel.setText(" ");
     }
 
@@ -403,21 +549,22 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         creditsSpinner.setValue(course.getCredits());
         difficultySpinner.setValue(course.getDifficultyRating());
 
-        addOrUpdateButton.setText("Update Course");
+        addOrUpdateButton.setText("✎  Update Course");
         formErrorLabel.setText("Editing selected course");
+        formErrorLabel.setForeground(ACCENT);
     }
 
     private void saveSchedule() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Save Schedule as JSON");
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON Files", "json"));
-        int result = chooser.showSaveDialog(this);
-        if (result != JFileChooser.APPROVE_OPTION) return;
+        FileDialog dialog = new FileDialog(this, "Save Schedule as JSON", FileDialog.SAVE);
+        dialog.setFile("*.json");
+        dialog.setVisible(true);
 
-        File file = chooser.getSelectedFile();
-        if (!file.getName().toLowerCase().endsWith(".json")) {
-            file = new File(file.getParentFile(), file.getName() + ".json");
-        }
+        String dir  = dialog.getDirectory();
+        String name = dialog.getFile();
+        if (dir == null || name == null) return;
+
+        if (!name.toLowerCase().endsWith(".json")) name += ".json";
+        File file = new File(dir, name);
 
         try {
             jsonStore.save(file.toPath(), model);
@@ -430,13 +577,15 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     }
 
     private void loadSchedule() {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Load Schedule JSON");
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON Files", "json"));
-        int result = chooser.showOpenDialog(this);
-        if (result != JFileChooser.APPROVE_OPTION) return;
+        FileDialog dialog = new FileDialog(this, "Load Schedule JSON", FileDialog.LOAD);
+        dialog.setFile("*.json");
+        dialog.setVisible(true);
 
-        File file = chooser.getSelectedFile();
+        String dir  = dialog.getDirectory();
+        String name = dialog.getFile();
+        if (dir == null || name == null) return;
+
+        File file = new File(dir, name);
         try {
             ScheduleJsonStore.LoadedSchedule loaded = jsonStore.load(file.toPath());
             if (loaded.getMaxCredits() < 1) {
@@ -470,10 +619,86 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     }
 
     // -------------------------------------------------------------------------
+    // UI helper factory methods
+    // -------------------------------------------------------------------------
+
+    /** Creates a styled rounded button with hover effect. */
+    private JButton styledButton(String text, Color bg, java.awt.event.ActionListener action) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getModel().isRollover() ? bg.brighter() : bg);
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 10, 10));
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setBackground(bg);
+        btn.setOpaque(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setBorder(new EmptyBorder(6, 14, 6, 14));
+        btn.addActionListener(action);
+        btn.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) { btn.repaint(); }
+            @Override public void mouseExited(MouseEvent e)  { btn.repaint(); }
+        });
+        return btn;
+    }
+
+    private JLabel styledValueLabel(String text) {
+        JLabel lbl = new JLabel(text);
+        lbl.setForeground(TEXT_PRI);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        return lbl;
+    }
+
+    private void styleTextField(JTextField field) {
+        field.setBackground(BG_CARD);
+        field.setForeground(TEXT_PRI);
+        field.setCaretColor(ACCENT);
+        field.setBorder(new CompoundBorder(
+                new LineBorder(BORDER_CLR, 1, true),
+                new EmptyBorder(4, 8, 4, 8)));
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+    }
+
+    private void styleComboBox(JComboBox<?> combo) {
+        combo.setBackground(BG_CARD);
+        combo.setForeground(TEXT_PRI);
+        combo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        combo.setBorder(new LineBorder(BORDER_CLR, 1, true));
+    }
+
+    private void styleSpinner(JSpinner spinner) {
+        spinner.setBackground(BG_CARD);
+        spinner.setForeground(TEXT_PRI);
+        spinner.setBorder(new LineBorder(BORDER_CLR, 1, true));
+        JComponent editor = spinner.getEditor();
+        if (editor instanceof JSpinner.DefaultEditor) {
+            JTextField tf = ((JSpinner.DefaultEditor) editor).getTextField();
+            tf.setBackground(BG_CARD);
+            tf.setForeground(TEXT_PRI);
+            tf.setCaretColor(ACCENT);
+            tf.setBorder(new EmptyBorder(2, 6, 2, 6));
+            tf.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Entry point
     // -------------------------------------------------------------------------
 
     public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
+        } catch (Exception ignored) {}
         SwingUtilities.invokeLater(ScheduleAnalyzerSwingApp::new);
     }
 }
