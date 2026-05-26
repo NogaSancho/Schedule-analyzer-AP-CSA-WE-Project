@@ -13,30 +13,43 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
 
+/**
+ * Main GUI window for the Course Schedule Analyzer.
+ * Built with Java Swing using a dark theme. The layout has three main areas:
+ *   - Top bar: schedule title, max-credit spinner, save/load buttons
+ *   - Left pane: form for adding or editing a course
+ *   - Right pane: course table (top) and live analysis report (bottom)
+ *
+ * The app follows a Model–Service–View pattern:
+ *   - ScheduleModel holds the data
+ *   - ScheduleService computes analysis and validates input
+ *   - This class (the view) displays data and handles user interaction
+ */
 public class ScheduleAnalyzerSwingApp extends JFrame {
 
-    // ── Dark theme palette ──────────────────────────────────────────────────
-    private static final Color BG_DEEP    = new Color(0x12131A);
-    private static final Color BG_PANEL   = new Color(0x1C1E2B);
-    private static final Color BG_CARD    = new Color(0x232635);
-    private static final Color BG_ROW_ALT = new Color(0x1E2030);
-    private static final Color ACCENT     = new Color(0x7C83FD);
-    private static final Color ACCENT_HOV = new Color(0x9DA3FF);
-    private static final Color SUCCESS    = new Color(0x4ADE80);
-    private static final Color WARNING    = new Color(0xFBBF24);
-    private static final Color DANGER     = new Color(0xF87171);
-    private static final Color TEXT_PRI   = new Color(0xE2E8F0);
-    private static final Color TEXT_SEC   = new Color(0x94A3B8);
-    private static final Color BORDER_CLR = new Color(0x2E3148);
+    // ── Dark theme color palette ────────────────────────────────────────────
+    private static final Color BG_DEEP    = new Color(0x12131A);   // deepest background
+    private static final Color BG_PANEL   = new Color(0x1C1E2B);   // panel backgrounds
+    private static final Color BG_CARD    = new Color(0x232635);   // input/card backgrounds
+    private static final Color BG_ROW_ALT = new Color(0x1E2030);   // alternating table row
+    private static final Color ACCENT     = new Color(0x7C83FD);   // primary accent (purple)
+    private static final Color ACCENT_HOV = new Color(0x9DA3FF);   // hover state accent
+    private static final Color SUCCESS    = new Color(0x4ADE80);   // green for good scores
+    private static final Color WARNING    = new Color(0xFBBF24);   // yellow for warnings
+    private static final Color DANGER     = new Color(0xF87171);   // red for errors/high scores
+    private static final Color TEXT_PRI   = new Color(0xE2E8F0);   // primary text
+    private static final Color TEXT_SEC   = new Color(0x94A3B8);   // secondary/label text
+    private static final Color BORDER_CLR = new Color(0x2E3148);   // subtle borders
 
+    // ── Core application objects ───────────────────────────────────────────
     private final ScheduleModel model = new ScheduleModel();
     private final ScheduleService service = new ScheduleService();
     private final ScheduleJsonStore jsonStore = new ScheduleJsonStore();
 
-    // Top bar
+    // ── Top bar components ──────────────────────────────────────────────────
     private JSpinner maxCreditsSpinner;
 
-    // Course form
+    // ── Course form components ──────────────────────────────────────────────
     private JTextField nameField;
     private JComboBox<Course.CourseType> typeCombo;
     private JSpinner hoursSpinner;
@@ -45,11 +58,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     private JLabel formErrorLabel;
     private JButton addOrUpdateButton;
 
-    // Table
+    // ── Course table components ─────────────────────────────────────────────
     private JTable courseTable;
     private DefaultTableModel tableModel;
 
-    // Report labels
+    // ── Analysis report labels ──────────────────────────────────────────────
     private JLabel totalHoursValue;
     private JLabel totalCreditsValue;
     private JLabel hoursScoreValue;
@@ -57,12 +70,14 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
     private JLabel difficultyScoreValue;
     private JLabel finalScoreValue;
 
-    // Warnings list
+    // ── Warnings display ────────────────────────────────────────────────────
     private DefaultListModel<String> warningsListModel;
     private JList<String> warningsList;
 
+    /** Index of the course currently being edited, or -1 if adding a new course. */
     private int editingIndex = -1;
 
+    /** Constructs the main window, builds all UI components, and displays the frame. */
     public ScheduleAnalyzerSwingApp() {
         super("Course Schedule Analyzer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -71,6 +86,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
 
         applyGlobalDefaults();
 
+        // Root panel with border layout: top bar + main content
         JPanel root = new JPanel(new BorderLayout(0, 12));
         root.setBackground(BG_DEEP);
         root.setBorder(new EmptyBorder(14, 14, 14, 14));
@@ -84,7 +100,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         setVisible(true);
     }
 
-    /** Push dark defaults into UIManager so all Swing components inherit them. */
+    /** Pushes dark-theme defaults into UIManager so all Swing components inherit them. */
     private void applyGlobalDefaults() {
         UIManager.put("Panel.background",           BG_PANEL);
         UIManager.put("OptionPane.background",      BG_CARD);
@@ -118,10 +134,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         UIManager.put("SplitPane.border",           BorderFactory.createEmptyBorder());
     }
 
-    // -------------------------------------------------------------------------
-    // Top bar
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Top bar — title, max credits spinner, save/load buttons
+    // =========================================================================
 
+    /** Builds the top bar with the app title, max-credits control, and file buttons. */
     private JPanel buildTopBar() {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         bar.setBackground(BG_DEEP);
@@ -155,10 +172,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return bar;
     }
 
-    // -------------------------------------------------------------------------
-    // Main content: left form + right table/report
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Main content — horizontal split between form (left) and table/report (right)
+    // =========================================================================
 
+    /** Creates the horizontal split pane holding the course form and the table/report. */
     private JSplitPane buildMainContent() {
         JPanel leftPane = buildLeftPane();
         JPanel rightPane = buildRightPane();
@@ -172,10 +190,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return split;
     }
 
-    // -------------------------------------------------------------------------
-    // Left pane: form
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Left pane — course input form
+    // =========================================================================
 
+    /** Builds the left panel containing the course input form and action buttons. */
     private JPanel buildLeftPane() {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -200,6 +219,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return panel;
     }
 
+    /** Builds the grid of labeled input fields for course data. */
     private JPanel buildCourseForm() {
         JPanel grid = new JPanel(new GridBagLayout());
         grid.setOpaque(false);
@@ -247,6 +267,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return grid;
     }
 
+    /** Builds the Add/Update and Clear buttons below the form. */
     private JPanel buildFormButtons() {
         addOrUpdateButton = styledButton("＋  Add Course", ACCENT, e -> saveCourseFromForm());
         JButton clearButton = styledButton("✕  Clear Form", BG_CARD, e -> resetForm());
@@ -258,6 +279,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return row;
     }
 
+    /** Creates the error/status label shown below the form buttons. */
     private JLabel buildFormErrorLabel() {
         formErrorLabel = new JLabel(" ");
         formErrorLabel.setForeground(DANGER);
@@ -266,10 +288,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return formErrorLabel;
     }
 
-    // -------------------------------------------------------------------------
-    // Right pane: table + report
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Right pane — course table (top) and live analysis report (bottom)
+    // =========================================================================
 
+    /** Builds the right panel with a vertical split between the table and the report. */
     private JPanel buildRightPane() {
         JPanel panel = new JPanel(new BorderLayout(0, 8));
         panel.setBackground(BG_DEEP);
@@ -288,6 +311,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return panel;
     }
 
+    /** Builds the course table with alternating row colors and a delete button. */
     private JPanel buildTableSection() {
         String[] columns = {"Name", "Type", "Hours/Week", "Credits", "Difficulty"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -363,6 +387,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return section;
     }
 
+    /** Builds the analysis report panel showing scores and warnings. */
     private JPanel buildReportPanel() {
         totalHoursValue    = styledValueLabel("0");
         totalCreditsValue  = styledValueLabel("0");
@@ -457,10 +482,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return report;
     }
 
-    // -------------------------------------------------------------------------
-    // Actions
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Actions — respond to user interaction
+    // =========================================================================
 
+    /** Validates the form fields and either adds a new course or updates the selected one. */
     private void saveCourseFromForm() {
         String name = nameField.getText() == null ? "" : nameField.getText().trim();
         Course.CourseType type = (Course.CourseType) typeCombo.getSelectedItem();
@@ -485,6 +511,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         refreshReport();
     }
 
+    /** Deletes the currently selected course from the table and model. */
     private void deleteSelectedCourse() {
         int selectedRow = courseTable.getSelectedRow();
         if (selectedRow < 0) {
@@ -497,6 +524,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         refreshReport();
     }
 
+    /** Rebuilds the course table and recalculates the analysis report. Called after any data change. */
     private void refreshReport() {
         tableModel.setRowCount(0);
         for (Course c : model.getCoursesSnapshot()) {
@@ -529,6 +557,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         }
     }
 
+    /** Clears all form fields and switches back to "Add" mode. */
     private void resetForm() {
         nameField.setText("");
         typeCombo.setSelectedItem(Course.CourseType.THEORY);
@@ -542,6 +571,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         formErrorLabel.setText(" ");
     }
 
+    /** Populates the form fields with a course's data for editing. */
     private void loadCourseIntoForm(Course course) {
         nameField.setText(course.getName());
         typeCombo.setSelectedItem(course.getType());
@@ -554,6 +584,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         formErrorLabel.setForeground(ACCENT);
     }
 
+    /** Opens a file dialog and saves the current schedule as a JSON file. */
     private void saveSchedule() {
         FileDialog dialog = new FileDialog(this, "Save Schedule as JSON", FileDialog.SAVE);
         dialog.setFile("*.json");
@@ -576,6 +607,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         }
     }
 
+    /** Opens a file dialog and loads a schedule from a JSON file. Validates all courses on import. */
     private void loadSchedule() {
         FileDialog dialog = new FileDialog(this, "Load Schedule JSON", FileDialog.LOAD);
         dialog.setFile("*.json");
@@ -618,11 +650,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // UI helper factory methods
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  UI helper factory methods — reusable styling for components
+    // =========================================================================
 
-    /** Creates a styled rounded button with hover effect. */
+    /** Creates a styled rounded button with hover effect and custom background color. */
     private JButton styledButton(String text, Color bg, java.awt.event.ActionListener action) {
         JButton btn = new JButton(text) {
             @Override
@@ -652,6 +684,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return btn;
     }
 
+    /** Creates a bold label used to display analysis values. */
     private JLabel styledValueLabel(String text) {
         JLabel lbl = new JLabel(text);
         lbl.setForeground(TEXT_PRI);
@@ -659,6 +692,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         return lbl;
     }
 
+    /** Applies the dark theme styling to a text field. */
     private void styleTextField(JTextField field) {
         field.setBackground(BG_CARD);
         field.setForeground(TEXT_PRI);
@@ -669,6 +703,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         field.setFont(new Font("Segoe UI", Font.PLAIN, 12));
     }
 
+    /** Applies the dark theme styling to a combo box. */
     private void styleComboBox(JComboBox<?> combo) {
         combo.setBackground(BG_CARD);
         combo.setForeground(TEXT_PRI);
@@ -676,6 +711,7 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         combo.setBorder(new LineBorder(BORDER_CLR, 1, true));
     }
 
+    /** Applies the dark theme styling to a spinner and its inner text field. */
     private void styleSpinner(JSpinner spinner) {
         spinner.setBackground(BG_CARD);
         spinner.setForeground(TEXT_PRI);
@@ -691,10 +727,11 @@ public class ScheduleAnalyzerSwingApp extends JFrame {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Entry point
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    //  Entry point
+    // =========================================================================
 
+    /** Application entry point. Sets the cross-platform look-and-feel and launches the GUI. */
     public static void main(String[] args) {
         try {
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
