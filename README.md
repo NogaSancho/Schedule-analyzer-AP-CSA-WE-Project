@@ -1,6 +1,6 @@
 # Course Schedule Analyzer
 
-A Java application for planning and evaluating course workload. Includes a Swing GUI, a JavaFX GUI, and an original console version.
+A Java application for planning and evaluating course workload. Includes a Swing GUI and an original console version.
 
 ## Project Structure
 
@@ -12,8 +12,7 @@ A Java application for planning and evaluating course workload. Includes a Swing
 │   ├── ScheduleAnalysis.java   # Immutable analysis result object
 │   ├── ValidationResult.java   # Validation result object used by add/edit flows
 │   ├── ScheduleJsonStore.java  # JSON save/load for schedules
-│   ├── ScheduleAnalyzerSwingApp.java  # Swing application entry point
-│   └── ScheduleAnalyzerApp.java       # JavaFX application entry point
+│   └── ScheduleAnalyzerSwingApp.java  # Swing application entry point
 ├── legacy/                     # Original console-based implementation
 │   └── schedule.java
 ├── out/                        # Compiled .class files (build output)
